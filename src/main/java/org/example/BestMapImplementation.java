@@ -1,6 +1,7 @@
 package org.example;
 
 import java.util.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class  BestMapImplementation<K, V> implements Map<K, V> {
     private static class Note<K, V>{
@@ -15,7 +16,7 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
     private static final int START_SIZE = 16;
     private List<Note<K, V>>[] particles;
     private int size;
-    private final Object lock = new Object();
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
     @SuppressWarnings("unchecked")
     BestMapImplementation(){
@@ -28,21 +29,30 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
 
     @Override
     public int size() {
-        synchronized (lock){
+        lock.readLock().lock();
+        try {
             return size;
+        }
+        finally {
+            lock.readLock().unlock();
         }
     }
 
     @Override
     public boolean isEmpty() {
-        synchronized (lock){
+        lock.readLock().lock();
+        try {
             return size == 0;
+        }
+        finally {
+            lock.readLock().unlock();
         }
     }
 
     @Override
     public boolean containsKey(Object key) {
-        synchronized (lock){
+        lock.readLock().lock();
+        try{
             int index = hash(key);
             for(Note<K, V> note : particles[index]){
                 if(Objects.equals(note.key, key)){
@@ -51,11 +61,15 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
             }
             return false;
         }
+        finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
     public boolean containsValue(Object value) {
-        synchronized (lock){
+        lock.readLock().lock();
+        try{
             for(List<Note<K, V>> list : particles){
                 for (Note<K, V> note : list){
                     if(Objects.equals(note.value, value))
@@ -64,11 +78,15 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
             }
             return false;
         }
+        finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
     public V get(Object key) {
-        synchronized (lock){
+        lock.readLock().lock();
+        try{
             int hashIndex = hash(key);
             for(Note<K, V> note : particles[hashIndex]){
                 if (Objects.equals(note.key, key)){
@@ -77,10 +95,14 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
             }
             return null;
         }
+        finally {
+            lock.readLock().unlock();
+        }
     }
 
     private void resize(){ // увеличиваем размерность таблицы
-        synchronized (lock){
+        lock.writeLock().lock();
+        try {
             List<Note<K, V>>[] newParticles = new List[particles.length * 2];
 
             for(int i = 0; i < newParticles.length; i++){
@@ -95,12 +117,15 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
             }
 
             particles = newParticles;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     @Override
     public V put(K key, V value) {
-        synchronized (lock){
+        lock.writeLock().lock();
+        try {
             if (size > particles.length * 0.75){
                 resize();
             }
@@ -116,12 +141,15 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
             particles[index].add(new Note<>(key, value));
             size++;
             return null;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     @Override
     public V remove(Object key) {
-        synchronized (lock){
+        lock.writeLock().lock();
+        try {
             int hashIndex = hash(key);
             Iterator<Note<K, V>> iterator = particles[hashIndex].iterator();
 
@@ -135,31 +163,40 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
                 }
             }
             return null;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     @Override
     public void putAll(Map<? extends K, ? extends V> m) {
-        synchronized (lock){
+        lock.writeLock().lock();
+        try{
             for (Map.Entry<? extends K, ? extends V> entry : m.entrySet()){
                 put(entry.getKey(), entry.getValue());
             }
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     @Override
     public void clear() {
-        synchronized (lock){
+        lock.writeLock().lock();
+        try {
             for(List<Note<K, V>> list : particles){
                 list.clear();
             }
             size = 0;
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
     @Override
     public Set<K> keySet() {
-        synchronized (lock){
+        lock.readLock().lock();
+        try {
             Set<K> keySet = new LightweightSet<>();
             for (List<Note<K, V>> list : particles){
                 for (Note<K, V> note : list){
@@ -167,12 +204,15 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
                 }
             }
             return keySet;
+        } finally {
+            lock.readLock().unlock();
         }
     }
 
     @Override
     public Collection<V> values() {
-        synchronized (lock){
+        lock.readLock().lock();
+        try {
             List<V> values = new ArrayList<>();
             for (List<Note<K, V>> list : particles){
                 for (Note<K, V> note : list){
@@ -180,12 +220,15 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
                 }
             }
             return values;
+        } finally {
+            lock.readLock().unlock();
         }
     }
 
     @Override
     public Set<Map.Entry<K, V>> entrySet() {
-        synchronized (lock){
+        lock.readLock().lock();
+        try {
             Set<Map.Entry<K, V>> entrySet = new LightweightEntrySet<>();
             for (List<Note<K, V>> list : particles){
                 for (Note<K, V> note : list){
@@ -193,6 +236,8 @@ public class  BestMapImplementation<K, V> implements Map<K, V> {
                 }
             }
             return entrySet;
+        } finally {
+            lock.readLock().unlock();
         }
     }
 
